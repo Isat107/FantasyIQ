@@ -1,6 +1,8 @@
 import streamlit as st
 
-# Configure the website
+from data_loader import load_player_stats
+
+from player_analysis import get_player_summary
 
 st.set_page_config(
 
@@ -12,50 +14,175 @@ st.set_page_config(
 
 )
 
-# Homepage
-
 st.title("🏈 FantasyIQ")
 
-st.subheader("Your Fantasy Football Analytics Platform")
+st.subheader("2026 NFL Fantasy Football Analytics")
 
-st.write(
-
-    "Make smarter fantasy football decisions "
-
-    "using NFL statistics and player analysis."
-
-)
+st.write("Compare real player performances using PPR scoring.")
 
 st.divider()
 
-# Player comparison section
+# Cache data so it isn't downloaded on every interaction
+
+@st.cache_data(ttl=3600)
+
+def get_data():
+
+    return load_player_stats()
+
+df = get_data()
+
+if df.empty:
+
+    st.error("Unable to load NFL statistics.")
+
+    st.stop()
+
+# Create a list of available players
+
+players = sorted(df["player_display_name"].dropna().unique())
 
 st.header("Player Comparison")
 
-player1 = st.text_input("Enter Player 1")
+col1, col2 = st.columns(2)
 
-player2 = st.text_input("Enter Player 2")
+with col1:
 
-scoring = st.selectbox(
+    player1 = st.selectbox(
 
-    "Select League Scoring",
+        "Select Player 1",
 
-    ["PPR", "Half-PPR", "Standard"]
+        players,
 
-)
+        index=None,
+
+        placeholder="Choose your first player"
+
+    )
+
+with col2:
+
+    player2 = st.selectbox(
+
+        "Select Player 2",
+
+        players,
+
+        index=None,
+
+        placeholder="Choose your second player"
+
+    )
 
 if st.button("Compare Players"):
 
-    if player1 and player2:
+    if not player1 or not player2:
 
-        st.success(
+        st.warning("Please select two players.")
 
-            f"Comparing {player1} vs {player2} "
+    elif player1 == player2:
 
-            f"using {scoring} scoring!"
-
-        )
+        st.warning("Please select two different players.")
 
     else:
 
-        st.warning("Please enter two players.")
+        stats1 = get_player_summary(df, player1)
+
+        stats2 = get_player_summary(df, player2)
+
+        if stats1 is None or stats2 is None:
+
+            st.error("Could not calculate player statistics.")
+
+        else:
+
+            st.subheader(
+
+                f"{player1} vs. {player2}"
+
+            )
+
+            comparison = {
+
+                "Statistic": [
+
+                    "Position",
+
+                    "Team",
+
+                    "Games Played",
+
+                    "Total PPR Points",
+
+                    "PPR Points Per Game",
+
+                    "Last 3 Games Average",
+
+                    "Receptions",
+
+                    "Targets",
+
+                    "Rushing Yards",
+
+                    "Receiving Yards"
+
+                ],
+
+                player1: [
+
+                    stats1["position"],
+
+                    stats1["team"],
+
+                    stats1["games"],
+
+                    stats1["total_points"],
+
+                    stats1["average_points"],
+
+                    stats1["last_three_average"],
+
+                    stats1["receptions"],
+
+                    stats1["targets"],
+
+                    stats1["rushing_yards"],
+
+                    stats1["receiving_yards"]
+
+                ],
+
+                player2: [
+
+                    stats2["position"],
+
+                    stats2["team"],
+
+                    stats2["games"],
+
+                    stats2["total_points"],
+
+                    stats2["average_points"],
+
+                    stats2["last_three_average"],
+
+                    stats2["receptions"],
+
+                    stats2["targets"],
+
+                    stats2["rushing_yards"],
+
+                    stats2["receiving_yards"]
+
+                ]
+
+            }
+
+            st.dataframe(
+
+                comparison,
+
+                hide_index=True,
+
+                use_container_width=True
+            )
