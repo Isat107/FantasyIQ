@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# FantasyIQ environment and secrets
+.venv/
+.env
+__pycache__/
+*.pyc
